@@ -1,45 +1,48 @@
 from flask import Flask, jsonify, request
-from flask_pymongo import PyMongo
 from flask_restful import Api, Resource
+from flask_mongoengine import MongoEngine
+from models import Users
 
 
 app = Flask(__name__)
 api = Api(app)
+
 # connecting with Database
-app.config["MONGO_URI"] = "mongodb://localhost:27017/address_book"
-mongo_client = PyMongo(app)
-db = mongo_client.db
+app.config['MONGODB_SETTINGS'] = {
+    "db": "address_book",
+}
+
+db = MongoEngine(app)
 
 
 class Crud(Resource):
     def get(self):
-        data = list(db.users.find())
+        data = Users.objects()
+        data_ = []
         for itr in data:
-            itr["_id"] = str(itr["_id"])
-        return jsonify(data)
+            data_.append({"Name": itr["Name"], "PhoneNumber": itr["PhoneNumber"]})
+        return jsonify(data_)
 
     def post(self):
-        result = {
-            'Name': request.form['Name'],
-            'PhoneNumber': request.form['PhoneNumber']
-        }
-        db.users.insert_one(result)
+        data = Users(Name=request.form['Name'], PhoneNumber=request.form['PhoneNumber'])
+        data.save()
         return jsonify(message='Success')
 
 
 class CrudName(Resource):
     def get(self, name):
-        data = list(db.users.find({"Name":name}))
-        for itr in data:
-            result = {"Name": itr["Name"], "PhoneNumber": itr["PhoneNumber"]}
+        data = Users.objects(Name=name).first()
+        result = {"Name": data.Name, "PhoneNumber": data.PhoneNumber}
         return jsonify(result)
 
     def patch(self, name):
-            db.users.update_one({"Name": name}, {"$set": {"PhoneNumber": request.form['PhoneNumber']}})
-            return jsonify(message="User Updated")
+        data = Users.objects(Name=name).first()
+        data.update(Name=name, PhoneNumber=request.form["PhoneNumber"])
+        return jsonify(message="User Updated")
 
     def delete(self, name):
-            db.users.delete_one({"Name": name})
+            data = Users.objects(Name=name).first()
+            data.delete()
             return jsonify(message="Deleted")
 
 
